@@ -6,6 +6,7 @@
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:padding="16dp">
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -23,10 +24,10 @@
         android:id="@+id/tvTime"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="24dp"
         android:fontFamily="monospace"
         android:text="@string/zero_time"
-        android:textSize="56sp"
+        android:textSize="52sp"
         android:textStyle="bold" />
 
     <TextView
@@ -37,10 +38,11 @@
         android:text="@string/status_paused"
         android:textSize="16sp" />
 
+    <!-- Thanh chứa 3 nút: Bắt đầu/Tạm dừng, Vòng (Lap), Đặt lại (Reset) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="20dp"
         android:orientation="horizontal">
 
         <Button
@@ -51,10 +53,18 @@
             android:text="@string/start" />
 
         <Button
+            android:id="@+id/btnLap"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/lap" />
+
+        <Button
             android:id="@+id/btnReset"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:text="@string/reset" />
     </LinearLayout>
@@ -63,7 +73,22 @@
         android:id="@+id/tvRecreate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:textSize="14sp" />
-</LinearLayout>
 
+    <!-- Khu vực hiển thị danh sách các vòng Lap -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/tvLaps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:lineSpacingExtra="4dp"
+            android:textSize="16sp" />
+    </ScrollView>
+</LinearLayout>

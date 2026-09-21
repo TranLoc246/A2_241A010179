@@ -14,11 +14,11 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    // TODO: thay 2201234567 bằng MSSV của bạn
     private static final String TAG = "A2_2201234567";
 
     // Khóa lưu trạng thái vào Bundle
@@ -26,22 +26,26 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_ACCUMULATED = "accumulated";
     private static final String KEY_START = "start";
     private static final String KEY_RECREATE = "recreate";
+    private static final String KEY_LAPS = "laps"; // Key mới cho NC1
 
-    private TextView tvTime, tvStatus, tvRecreate;
-    private Button btnStartPause, btnReset;
+    private TextView tvTime, tvStatus, tvRecreate, tvLaps;
+    private Button btnStartPause, btnReset, btnLap;
 
     // Trạng thái của đồng hồ
-    private boolean running = false;   // đang chạy hay không
-    private long accumulated = 0L;     // số mili-giây đã tích lũy trước lần chạy hiện tại
-    private long startTime = 0L;       // mốc elapsedRealtime() lúc bắt đầu lần chạy hiện tại
-    private int recreateCount = 0;     // số lần Activity được tạo lại
+    private boolean running = false;
+    private long accumulated = 0L;
+    private long startTime = 0L;
+    private int recreateCount = 0;
+
+    // Danh sách các vòng Lap (NC1)
+    private ArrayList<String> lapList = new ArrayList<>();
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
         @Override
         public void run() {
             updateTimeText();
-            handler.postDelayed(this, 100); // cập nhật 10 lần/giây
+            handler.postDelayed(this, 100);
         }
     };
 
@@ -59,14 +63,23 @@ public class MainActivity extends AppCompatActivity {
         tvTime = findViewById(R.id.tvTime);
         tvStatus = findViewById(R.id.tvStatus);
         tvRecreate = findViewById(R.id.tvRecreate);
+        tvLaps = findViewById(R.id.tvLaps);
         btnStartPause = findViewById(R.id.btnStartPause);
         btnReset = findViewById(R.id.btnReset);
+        btnLap = findViewById(R.id.btnLap);
 
         if (savedInstanceState != null) {
             running = savedInstanceState.getBoolean(KEY_RUNNING);
             accumulated = savedInstanceState.getLong(KEY_ACCUMULATED);
             startTime = savedInstanceState.getLong(KEY_START);
             recreateCount = savedInstanceState.getInt(KEY_RECREATE) + 1;
+
+            // Khôi phục danh sách Lap khi xoay màn hình (NC1)
+            ArrayList<String> savedLaps = savedInstanceState.getStringArrayList(KEY_LAPS);
+            if (savedLaps != null) {
+                lapList = savedLaps;
+            }
+
             Log.d(TAG, "onCreate: KHÔI PHỤC trạng thái, running=" + running
                     + ", accumulated=" + accumulated + "ms");
         } else {
@@ -80,14 +93,17 @@ public class MainActivity extends AppCompatActivity {
                 startStopwatch();
             }
         });
+
         btnReset.setOnClickListener(v -> resetStopwatch());
+
+        // Sự kiện khi bấm nút Lap (NC1)
+        btnLap.setOnClickListener(v -> recordLap());
 
         updateUi();
     }
 
     // ---------------- Logic đồng hồ ----------------
 
-    /** Tổng thời gian đã trôi qua (ms). */
     private long elapsed() {
         return running ? accumulated + (SystemClock.elapsedRealtime() - startTime) : accumulated;
     }
@@ -113,12 +129,30 @@ public class MainActivity extends AppCompatActivity {
         accumulated = 0L;
         startTime = 0L;
         stopTicking();
+        lapList.clear(); // Xóa lịch sử Lap khi reset
         updateUi();
         Log.i(TAG, "ĐẶT LẠI về 00:00.0");
     }
 
+    // Ghi nhận vòng Lap hiện tại (NC1)
+    private void recordLap() {
+        if (elapsed() == 0) return; // Không bấm lap khi chưa chạy
+
+        long ms = elapsed();
+        long phut = ms / 60000;
+        long giay = (ms % 60000) / 1000;
+        long phanMuoi = (ms % 1000) / 100;
+
+        String timeFormatted = String.format(Locale.getDefault(), "%02d:%02d.%d", phut, giay, phanMuoi);
+        String lapText = String.format(Locale.getDefault(), "Vòng %d: %s", lapList.size() + 1, timeFormatted);
+
+        lapList.add(0, lapText); // Thêm vòng mới lên đầu danh sách
+        updateLapUi();
+        Log.i(TAG, "GHI VÒNG: " + lapText);
+    }
+
     private void startTicking() {
-        handler.removeCallbacks(ticker);   // tránh chạy chồng nhiều ticker
+        handler.removeCallbacks(ticker);
         handler.post(ticker);
     }
 
@@ -136,8 +170,17 @@ public class MainActivity extends AppCompatActivity {
         tvTime.setText(String.format(Locale.getDefault(), "%02d:%02d.%d", phut, giay, phanMuoi));
     }
 
+    private void updateLapUi() {
+        StringBuilder sb = new StringBuilder();
+        for (String lap : lapList) {
+            sb.append(lap).append("\n");
+        }
+        tvLaps.setText(sb.toString());
+    }
+
     private void updateUi() {
         updateTimeText();
+        updateLapUi();
         btnStartPause.setText(running ? R.string.pause : R.string.start);
         tvStatus.setText(running ? R.string.status_running : R.string.status_paused);
         tvRecreate.setText(getString(R.string.recreate_count, recreateCount));
@@ -164,8 +207,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        // Dừng cập nhật giao diện để tiết kiệm pin; đồng hồ vẫn tính đúng
-        // vì thời gian được suy ra từ mốc SystemClock.elapsedRealtime().
         stopTicking();
         Log.d(TAG, "onPause – tạm dừng cập nhật giao diện");
     }
@@ -184,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        stopTicking();               // luôn gỡ callback để tránh rò rỉ bộ nhớ
+        stopTicking();
         Log.d(TAG, "onDestroy");
         super.onDestroy();
     }
@@ -198,6 +239,10 @@ public class MainActivity extends AppCompatActivity {
         outState.putLong(KEY_ACCUMULATED, accumulated);
         outState.putLong(KEY_START, startTime);
         outState.putInt(KEY_RECREATE, recreateCount);
+
+        // Lưu danh sách Lap vào Bundle khi xoay màn hình (NC1)
+        outState.putStringArrayList(KEY_LAPS, lapList);
+
         Log.d(TAG, "onSaveInstanceState – đã lưu " + elapsed() + "ms vào Bundle");
     }
 
